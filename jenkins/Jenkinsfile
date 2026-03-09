@@ -48,6 +48,8 @@ pipeline {
     PYTHONPATH = "${WORKSPACE}"
     DRUPAL_ROOT = "${params.DRUPAL_ROOT}"
     SITE_URL = "${params.SITE_URL}"
+    DRUSH_BIN = "ddev drush"
+    COMPOSER_BIN = "ddev composer"
     HEADLESS_ENABLED = "false"
     FAIL_ON_TEST_ERRORS = "true"
     VERIFY_SSL = "true"
@@ -87,6 +89,9 @@ pipeline {
             sh """
               export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
               export SITE_URL='${params.SITE_URL}'
+              export DRUSH_BIN='${env.DRUSH_BIN}'
+              export COMPOSER_BIN='${env.COMPOSER_BIN}'
+              cd /var/www/html/testauto
               python3 -m core.analysis_engine
             """
           }
