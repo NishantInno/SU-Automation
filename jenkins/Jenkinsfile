@@ -71,6 +71,8 @@ pipeline {
           sh """
             cd ${env.PROJECT_ROOT}
             mkdir -p logs reports patches
+            # Remove .env file to prevent it from overriding Jenkins parameters
+            rm -f .env
             pip3 install -r requirements.txt --user --quiet 2>/dev/null || echo "Using system Python packages"
           """
         }
