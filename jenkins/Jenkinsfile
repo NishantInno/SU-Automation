@@ -44,8 +44,8 @@ pipeline {
   }
   
   environment {
-    PROJECT_ROOT = "${WORKSPACE}/automated-security-update"
-    PYTHONPATH = "${WORKSPACE}/automated-security-update"
+    PROJECT_ROOT = "${WORKSPACE}"
+    PYTHONPATH = "${WORKSPACE}"
     DRUPAL_ROOT = "${params.DRUPAL_ROOT}"
     SITE_URL = "${params.SITE_URL}"
     HEADLESS_ENABLED = "false"
@@ -242,15 +242,15 @@ print('Verification passed!')
     always {
       script {
         echo "Archiving artifacts..."
-        archiveArtifacts artifacts: 'automated-security-update/reports/**/*', allowEmptyArchive: true
-        archiveArtifacts artifacts: 'automated-security-update/logs/**/*', allowEmptyArchive: true
-        archiveArtifacts artifacts: 'automated-security-update/patches/**/*', allowEmptyArchive: true
+        archiveArtifacts artifacts: 'reports/**/*', allowEmptyArchive: true
+        archiveArtifacts artifacts: 'logs/**/*', allowEmptyArchive: true
+        archiveArtifacts artifacts: 'patches/**/*', allowEmptyArchive: true
         
         publishHTML([
           allowMissing: false,
           alwaysLinkToLastBuild: true,
           keepAll: true,
-          reportDir: 'automated-security-update/reports',
+          reportDir: 'reports',
           reportFiles: 'security-report.html',
           reportName: 'Security Report'
         ])
