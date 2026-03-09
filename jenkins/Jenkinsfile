@@ -271,15 +271,6 @@ print('Verification passed!')
         archiveArtifacts artifacts: 'reports/**/*', allowEmptyArchive: true
         archiveArtifacts artifacts: 'logs/**/*', allowEmptyArchive: true
         archiveArtifacts artifacts: 'patches/**/*', allowEmptyArchive: true
-        
-        publishHTML([
-          allowMissing: false,
-          alwaysLinkToLastBuild: true,
-          keepAll: true,
-          reportDir: 'reports',
-          reportFiles: 'security-report.html',
-          reportName: 'Security Report'
-        ])
       }
     }
     
