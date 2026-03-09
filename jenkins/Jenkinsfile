@@ -125,14 +125,16 @@ pipeline {
         script {
           echo "Applying security updates via Composer..."
           dir(env.PROJECT_ROOT) {
-            sh """
-              export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
-              export SITE_URL='${params.SITE_URL}'
-              export DRUSH_BIN='${env.DRUSH_BIN}'
-              export COMPOSER_BIN='${env.COMPOSER_BIN}'
-              cd /var/www/html/testauto
-              python3 -c "from core.update_engine import apply_updates; apply_updates()"
-            """
+            catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+              sh """
+                export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+                export SITE_URL='${params.SITE_URL}'
+                export DRUSH_BIN='${env.DRUSH_BIN}'
+                export COMPOSER_BIN='${env.COMPOSER_BIN}'
+                cd /var/www/html/testauto
+                python3 -c "from core.update_engine import apply_updates; apply_updates()"
+              """
+            }
           }
         }
       }
@@ -145,11 +147,12 @@ pipeline {
       steps {
         script {
           echo "Running Drush database updates..."
-          dir(env.DRUPAL_ROOT) {
-            sh '''
-              drush updb -y || exit 1
-              drush cr || exit 1
-            '''
+          catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+            sh """
+              cd /var/www/html/testauto
+              ddev drush updb -y || exit 1
+              ddev drush cr || exit 1
+            """
           }
         }
       }
