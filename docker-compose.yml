@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  automated-security-update:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: automated-security-update
+    volumes:
+      - ./:/app
+      - ${DRUPAL_ROOT}:/drupal:ro
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./patches:/app/patches
+    environment:
+      - DRUPAL_ROOT=/drupal
+      - SITE_URL=${SITE_URL:-http://localhost}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PYTHONUNBUFFERED=1
+    working_dir: /app
+    command: tail -f /dev/null
+    networks:
+      - drupal-network
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins-automation
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - ./jenkins:/var/jenkins_home/jobs/automated-security-update
+      - ${DRUPAL_ROOT}:/drupal:ro
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    networks:
+      - drupal-network
+
+networks:
+  drupal-network:
+    driver: bridge
+
+volumes:
+  jenkins_home:

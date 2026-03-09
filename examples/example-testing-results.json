@@ -1,0 +1,69 @@
+{
+  "timestamp": "2024-03-09T10:35:00Z",
+  "http_checks": [
+    {
+      "url": "http://localhost/",
+      "status_code": "200",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "url": "http://localhost/admin",
+      "status_code": "200",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "url": "http://localhost/node",
+      "status_code": "200",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "url": "http://localhost/contact",
+      "status_code": "200",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "url": "http://localhost/events",
+      "status_code": "404",
+      "exit_code": 0,
+      "stderr": ""
+    }
+  ],
+  "headless_checks": [
+    {
+      "status": "skipped",
+      "reason": "HEADLESS_ENABLED=false"
+    }
+  ],
+  "watchdog": [
+    {
+      "wid": "12345",
+      "type": "php",
+      "severity": "error",
+      "message": "Undefined array key \"field_name\" in custom_api_preprocess_node() (line 45 of modules/custom/custom_api/custom_api.module)",
+      "timestamp": "1709982600"
+    },
+    {
+      "wid": "12346",
+      "type": "system",
+      "severity": "notice",
+      "message": "Cron run completed.",
+      "timestamp": "1709982500"
+    }
+  ],
+  "entity_updates": {
+    "message": "No entity schema updates required."
+  },
+  "config_status": {
+    "differences": 0,
+    "message": "No differences between active and sync configuration."
+  },
+  "summary": {
+    "http_errors": 1,
+    "headless_enabled": false,
+    "watchdog_errors": 1
+  }
+}

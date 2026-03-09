@@ -1,0 +1,183 @@
+---
+# Automated Security Update Configuration
+# Copy this file to config.yaml and customize for your environment
+
+drupal:
+  # Absolute path to Drupal root directory
+  site_path: "/var/www/html/drupal"
+  
+  # Site URL for testing
+  site_url: "http://localhost"
+  
+  # Drush binary path (or just 'drush' if in PATH)
+  drush_path: "/usr/local/bin/drush"
+  
+  # Composer binary path
+  composer_path: "/usr/local/bin/composer"
+  
+  # Git binary path
+  git_path: "/usr/bin/git"
+  
+  # Curl binary path
+  curl_path: "/usr/bin/curl"
+
+# Environment configurations
+environments:
+  local:
+    url: "http://localhost"
+    ssh_host: null
+    deploy_path: "/var/www/html/drupal"
+    
+  dev:
+    url: "https://dev.example.com"
+    ssh_host: "dev-server.example.com"
+    ssh_user: "deploy"
+    deploy_path: "/var/www/html/drupal"
+    
+  qc:
+    url: "https://qc.example.com"
+    ssh_host: "qc-server.example.com"
+    ssh_user: "deploy"
+    deploy_path: "/var/www/html/drupal"
+    
+  prod:
+    url: "https://www.example.com"
+    ssh_host: "prod-server.example.com"
+    ssh_user: "deploy"
+    deploy_path: "/var/www/html/drupal"
+    requires_approval: true
+
+# AI Configuration
+ai:
+  # AI provider (openai, anthropic, custom)
+  provider: "openai"
+  
+  # API endpoint
+  api_base: "https://api.openai.com/v1"
+  
+  # Model to use
+  model: "gpt-4"
+  
+  # API timeout in seconds
+  timeout: 60
+  
+  # Enable AI-assisted fixing
+  enabled: true
+
+# Testing Configuration
+testing:
+  # Critical pages to test
+  critical_pages:
+    - "/"
+    - "/admin"
+    - "/admin/content"
+    - "/node"
+    - "/user/login"
+    - "/contact"
+    - "/events"
+    - "/news"
+  
+  # Enable headless browser testing (requires Playwright)
+  headless_enabled: false
+  
+  # Fail pipeline on test errors
+  fail_on_errors: true
+  
+  # HTTP status codes considered successful
+  success_codes:
+    - 200
+    - 301
+    - 302
+    - 303
+
+# Update Configuration
+updates:
+  # Automatically apply security updates
+  auto_apply_security: true
+  
+  # Automatically apply non-security updates
+  auto_apply_regular: false
+  
+  # Modules to exclude from updates
+  exclude_modules:
+    - "custom_module_1"
+    - "custom_module_2"
+  
+  # Run database updates after composer update
+  run_database_updates: true
+  
+  # Import configuration after updates
+  import_config: true
+  
+  # Clear cache after updates
+  clear_cache: true
+
+# Deployment Configuration
+deployment:
+  # Deployment flow (order matters)
+  flow:
+    - "local"
+    - "dev"
+    - "qc"
+    - "prod"
+  
+  # Create backup before deployment
+  backup_enabled: true
+  
+  # Backup retention days
+  backup_retention_days: 30
+  
+  # Enable rollback on failure
+  rollback_enabled: true
+
+# Logging Configuration
+logging:
+  # Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  level: "INFO"
+  
+  # Log retention days
+  retention_days: 90
+  
+  # Enable detailed logging
+  verbose: false
+
+# Notification Configuration
+notifications:
+  # Enable email notifications
+  email_enabled: false
+  email_to: "admin@example.com"
+  email_from: "noreply@example.com"
+  smtp_host: "smtp.example.com"
+  smtp_port: 587
+  
+  # Enable Slack notifications
+  slack_enabled: false
+  slack_webhook_url: ""
+  
+  # Notify on success
+  notify_on_success: true
+  
+  # Notify on failure
+  notify_on_failure: true
+
+# Security Configuration
+security:
+  # Verify SSL certificates
+  verify_ssl: true
+  
+  # Require GPG signature verification
+  require_gpg: false
+  
+  # Maximum allowed security vulnerabilities before blocking deployment
+  max_vulnerabilities: 0
+
+# Performance Configuration
+performance:
+  # Command timeout in seconds
+  command_timeout: 900
+  
+  # Parallel execution where possible
+  parallel_enabled: false
+  
+  # Maximum concurrent operations
+  max_workers: 4

@@ -1,0 +1,302 @@
+#!/usr/bin/env groovy
+
+pipeline {
+  agent any
+  
+  parameters {
+    choice(
+      name: 'ENVIRONMENT',
+      choices: ['local', 'dev', 'qc', 'prod'],
+      description: 'Target deployment environment'
+    )
+    booleanParam(
+      name: 'DRY_RUN',
+      defaultValue: false,
+      description: 'Run in dry-run mode (no actual changes)'
+    )
+    booleanParam(
+      name: 'SKIP_AI_FIX',
+      defaultValue: false,
+      description: 'Skip AI-assisted error fixing'
+    )
+    booleanParam(
+      name: 'FORCE_DEPLOY',
+      defaultValue: false,
+      description: 'Force deployment even with warnings'
+    )
+    string(
+      name: 'DRUPAL_ROOT',
+      defaultValue: '/var/www/html/drupal',
+      description: 'Absolute path to Drupal root'
+    )
+    string(
+      name: 'SITE_URL',
+      defaultValue: 'http://localhost',
+      description: 'Site URL for testing'
+    )
+  }
+  
+  options {
+    timestamps()
+    timeout(time: 2, unit: 'HOURS')
+    buildDiscarder(logRotator(numToKeepStr: '30', daysToKeepStr: '90'))
+    disableConcurrentBuilds()
+  }
+  
+  environment {
+    PROJECT_ROOT = "${WORKSPACE}/automated-security-update"
+    PYTHONPATH = "${WORKSPACE}/automated-security-update"
+    DRUPAL_ROOT = "${params.DRUPAL_ROOT}"
+    SITE_URL = "${params.SITE_URL}"
+    HEADLESS_ENABLED = "false"
+    FAIL_ON_TEST_ERRORS = "true"
+    VERIFY_SSL = "true"
+    COMMAND_TIMEOUT = "900"
+  }
+  
+  stages {
+    stage('Initialize') {
+      steps {
+        script {
+          echo "==================================================="
+          echo "Automated Security Update Pipeline"
+          echo "==================================================="
+          echo "Environment: ${params.ENVIRONMENT}"
+          echo "Dry Run: ${params.DRY_RUN}"
+          echo "Skip AI Fix: ${params.SKIP_AI_FIX}"
+          echo "Drupal Root: ${params.DRUPAL_ROOT}"
+          echo "Site URL: ${params.SITE_URL}"
+          echo "==================================================="
+          
+          sh """
+            cd ${env.PROJECT_ROOT}
+            mkdir -p logs reports patches
+            pip3 install -r requirements.txt --quiet
+          """
+        }
+      }
+    }
+    
+    stage('Stage 1: Site Analysis') {
+      steps {
+        script {
+          echo "Running comprehensive site analysis..."
+          dir(env.PROJECT_ROOT) {
+            sh 'python3 core/analysis_engine.py'
+          }
+        }
+      }
+    }
+    
+    stage('Stage 2: Version Check') {
+      steps {
+        script {
+          echo "Checking for available module updates..."
+          dir(env.PROJECT_ROOT) {
+            sh '''
+              python3 -c "from core.update_engine import check_versions; check_versions()"
+            '''
+          }
+        }
+      }
+    }
+    
+    stage('Stage 3: Apply Security Updates') {
+      when {
+        expression { params.DRY_RUN == false }
+      }
+      steps {
+        script {
+          echo "Applying security updates via Composer..."
+          dir(env.PROJECT_ROOT) {
+            sh '''
+              python3 -c "from core.update_engine import apply_updates; apply_updates()"
+            '''
+          }
+        }
+      }
+    }
+    
+    stage('Stage 4: Run Database Updates') {
+      when {
+        expression { params.DRY_RUN == false }
+      }
+      steps {
+        script {
+          echo "Running Drush database updates..."
+          dir(env.DRUPAL_ROOT) {
+            sh '''
+              drush updb -y || exit 1
+              drush cr || exit 1
+            '''
+          }
+        }
+      }
+    }
+    
+    stage('Stage 5: Automated Testing') {
+      steps {
+        script {
+          echo "Running comprehensive automated tests..."
+          dir(env.PROJECT_ROOT) {
+            sh 'python3 core/testing_engine.py'
+          }
+        }
+      }
+    }
+    
+    stage('Stage 6: Generate Report') {
+      steps {
+        script {
+          echo "Generating security and update report..."
+          dir(env.PROJECT_ROOT) {
+            sh 'python3 core/report_engine.py'
+          }
+        }
+      }
+    }
+    
+    stage('Stage 7: AI Fix Engine') {
+      when {
+        expression { params.SKIP_AI_FIX == false }
+      }
+      steps {
+        script {
+          echo "Running AI-assisted error fixing..."
+          dir(env.PROJECT_ROOT) {
+            catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+              sh 'python3 core/ai_fix_engine.py'
+            }
+          }
+        }
+      }
+    }
+    
+    stage('Stage 8: Re-verification') {
+      when {
+        expression { params.SKIP_AI_FIX == false && params.DRY_RUN == false }
+      }
+      steps {
+        script {
+          echo "Re-running tests after AI fixes..."
+          dir(env.PROJECT_ROOT) {
+            sh 'python3 core/testing_engine.py'
+          }
+        }
+      }
+    }
+    
+    stage('Stage 9: Deploy to Environment') {
+      when {
+        expression { params.DRY_RUN == false }
+      }
+      steps {
+        script {
+          echo "Deploying to ${params.ENVIRONMENT} environment..."
+          
+          if (params.ENVIRONMENT == 'prod' && !params.FORCE_DEPLOY) {
+            input message: 'Deploy to PRODUCTION?', ok: 'Deploy to PROD', submitter: 'admin'
+          }
+          
+          dir(env.PROJECT_ROOT) {
+            sh """
+              python3 -c "from core.deploy_engine import deploy; deploy('${params.ENVIRONMENT}')"
+            """
+          }
+        }
+      }
+    }
+    
+    stage('Verification') {
+      when {
+        expression { params.DRY_RUN == false }
+      }
+      steps {
+        script {
+          echo "Running post-deployment verification..."
+          dir(env.PROJECT_ROOT) {
+            sh '''
+              python3 -c "
+from core.testing_engine import run_tests
+from pathlib import Path
+import json
+
+report_path = run_tests()
+report = json.loads(Path(report_path).read_text())
+http_errors = report.get('summary', {}).get('http_errors', 0)
+watchdog_errors = report.get('summary', {}).get('watchdog_errors', 0)
+
+if http_errors > 0 or watchdog_errors > 0:
+    print(f'WARNING: {http_errors} HTTP errors, {watchdog_errors} watchdog errors')
+    exit(1)
+print('Verification passed!')
+              "
+            '''
+          }
+        }
+      }
+    }
+  }
+  
+  post {
+    always {
+      script {
+        echo "Archiving artifacts..."
+        archiveArtifacts artifacts: 'automated-security-update/reports/**/*', allowEmptyArchive: true
+        archiveArtifacts artifacts: 'automated-security-update/logs/**/*', allowEmptyArchive: true
+        archiveArtifacts artifacts: 'automated-security-update/patches/**/*', allowEmptyArchive: true
+        
+        publishHTML([
+          allowMissing: false,
+          alwaysLinkToLastBuild: true,
+          keepAll: true,
+          reportDir: 'automated-security-update/reports',
+          reportFiles: 'security-report.html',
+          reportName: 'Security Report'
+        ])
+      }
+    }
+    
+    success {
+      script {
+        echo "✅ Pipeline completed successfully!"
+        emailext(
+          subject: "✅ Automated Security Update - SUCCESS - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+          body: """
+            <h2>Automated Security Update Completed Successfully</h2>
+            <p><strong>Environment:</strong> ${params.ENVIRONMENT}</p>
+            <p><strong>Build:</strong> ${env.BUILD_URL}</p>
+            <p><strong>Duration:</strong> ${currentBuild.durationString}</p>
+            <p>View the full security report in Jenkins artifacts.</p>
+          """,
+          to: '${DEFAULT_RECIPIENTS}',
+          mimeType: 'text/html'
+        )
+      }
+    }
+    
+    failure {
+      script {
+        echo "❌ Pipeline failed!"
+        emailext(
+          subject: "❌ Automated Security Update - FAILURE - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+          body: """
+            <h2>Automated Security Update Failed</h2>
+            <p><strong>Environment:</strong> ${params.ENVIRONMENT}</p>
+            <p><strong>Build:</strong> ${env.BUILD_URL}</p>
+            <p><strong>Failed Stage:</strong> ${env.STAGE_NAME}</p>
+            <p>Check the console output and logs for details.</p>
+          """,
+          to: '${DEFAULT_RECIPIENTS}',
+          mimeType: 'text/html'
+        )
+      }
+    }
+    
+    unstable {
+      script {
+        echo "⚠️  Pipeline completed with warnings"
+      }
+    }
+  }
+}

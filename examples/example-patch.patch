@@ -1,0 +1,13 @@
+diff --git a/modules/custom/custom_api/custom_api.module b/modules/custom/custom_api/custom_api.module
+index 1234567..abcdefg 100644
+--- a/modules/custom/custom_api/custom_api.module
++++ b/modules/custom/custom_api/custom_api.module
+@@ -42,7 +42,7 @@ function custom_api_preprocess_node(&$variables) {
+   $node = $variables['node'];
+   
+   // Get field value
+-  $field_value = $node->get('field_name')->value;
++  $field_value = $node->hasField('field_name') ? $node->get('field_name')->value : NULL;
+   
+   if ($field_value) {
+     $variables['custom_field'] = $field_value;

@@ -1,0 +1,109 @@
+{
+  "timestamp": "2024-03-09T10:30:00Z",
+  "drupal_root": "/var/www/html/drupal",
+  "site_url": "http://localhost",
+  "drush_status": {
+    "drupal_version": "10.2.0",
+    "drupal-version": "10.2.0",
+    "php": "8.2.0",
+    "php_version": "8.2.0",
+    "database": "MySQL 8.0.35",
+    "database_version": "MySQL 8.0.35",
+    "site": "sites/default",
+    "root": "/var/www/html/drupal",
+    "uri": "http://localhost",
+    "bootstrap": "Successful"
+  },
+  "enabled_modules": [
+    {
+      "name": "admin_toolbar",
+      "type": "module",
+      "status": "enabled",
+      "version": "3.4.0",
+      "path": "modules/contrib/admin_toolbar",
+      "package": "Administration"
+    },
+    {
+      "name": "webform",
+      "type": "module",
+      "status": "enabled",
+      "version": "6.2.0",
+      "path": "modules/contrib/webform",
+      "package": "Webform"
+    },
+    {
+      "name": "pathauto",
+      "type": "module",
+      "status": "enabled",
+      "version": "1.12.0",
+      "path": "modules/contrib/pathauto",
+      "package": "SEO"
+    },
+    {
+      "name": "custom_api",
+      "type": "module",
+      "status": "enabled",
+      "version": "1.0.0",
+      "path": "modules/custom/custom_api",
+      "package": "Custom"
+    }
+  ],
+  "custom_modules": [
+    {
+      "name": "custom_api",
+      "type": "module",
+      "status": "enabled",
+      "version": "1.0.0",
+      "path": "modules/custom/custom_api",
+      "package": "Custom"
+    }
+  ],
+  "security_vulnerabilities": [
+    {
+      "name": "webform",
+      "version": "6.2.0",
+      "advisory": "SA-CONTRIB-2024-001",
+      "severity": "Moderately critical",
+      "description": "Cross-site scripting vulnerability"
+    }
+  ],
+  "config_status": {
+    "differences": 0,
+    "message": "No differences between active and sync configuration."
+  },
+  "watchdog": [
+    {
+      "wid": "12345",
+      "type": "php",
+      "severity": "error",
+      "message": "Undefined array key \"field_name\" in custom_api_preprocess_node()",
+      "timestamp": "1709982600"
+    },
+    {
+      "wid": "12346",
+      "type": "system",
+      "severity": "notice",
+      "message": "Cron run completed.",
+      "timestamp": "1709982500"
+    }
+  ],
+  "watchdog_summary": {
+    "error_count": 1,
+    "warning_count": 0,
+    "notice_count": 1
+  },
+  "summary": {
+    "drupal_core_version": "10.2.0",
+    "php_version": "8.2.0",
+    "database_version": "MySQL 8.0.35",
+    "enabled_module_count": 87,
+    "custom_module_count": 5
+  },
+  "raw_outputs": {
+    "drush_status": {
+      "stdout": "Drupal version : 10.2.0\nPHP version    : 8.2.0\nDatabase       : MySQL 8.0.35",
+      "stderr": "",
+      "exit_code": 0
+    }
+  }
+}

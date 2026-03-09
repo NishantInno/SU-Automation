@@ -1,0 +1,29 @@
+{
+  "timestamp": "2024-03-09T10:40:00Z",
+  "results": [
+    {
+      "error": {
+        "type": "php",
+        "severity": "error",
+        "message": "Undefined array key \"field_name\" in custom_api_preprocess_node() (line 45 of modules/custom/custom_api/custom_api.module)",
+        "file": "modules/custom/custom_api/custom_api.module",
+        "line": 45
+      },
+      "patch_path": "patches/20240309104000-undefined-array-key-field_name.patch",
+      "applied": true,
+      "stderr": ""
+    },
+    {
+      "error": {
+        "type": "php",
+        "severity": "warning",
+        "message": "Deprecated function: strpos(): Passing null to parameter #1 ($haystack) of type string is deprecated in Drupal\\custom_module\\CustomClass->process() (line 123)",
+        "file": "modules/custom/custom_module/src/CustomClass.php",
+        "line": 123
+      },
+      "patch_path": "patches/20240309104030-deprecated-strpos-null.patch",
+      "applied": true,
+      "stderr": ""
+    }
+  ]
+}

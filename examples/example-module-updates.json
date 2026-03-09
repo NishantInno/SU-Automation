@@ -1,0 +1,62 @@
+{
+  "timestamp": "2024-03-09T10:31:00Z",
+  "modules": [
+    {
+      "module_name": "webform",
+      "installed_version": "6.2.0",
+      "latest_version": "6.2.1",
+      "security_update_required": true,
+      "release_history": {
+        "latest_version": "6.2.1",
+        "latest_status": "published",
+        "latest_security_term": "Security update",
+        "release_count": 45
+      }
+    },
+    {
+      "module_name": "admin_toolbar",
+      "installed_version": "3.4.0",
+      "latest_version": "3.4.2",
+      "security_update_required": false,
+      "release_history": {
+        "latest_version": "3.4.2",
+        "latest_status": "published",
+        "latest_security_term": null,
+        "release_count": 28
+      }
+    },
+    {
+      "module_name": "pathauto",
+      "installed_version": "1.12.0",
+      "latest_version": "1.12.0",
+      "security_update_required": false,
+      "release_history": {
+        "latest_version": "1.12.0",
+        "latest_status": "published",
+        "latest_security_term": null,
+        "release_count": 35
+      }
+    }
+  ],
+  "security_modules": [
+    "webform"
+  ],
+  "composer_raw": {
+    "installed": [
+      {
+        "name": "drupal/webform",
+        "version": "6.2.0",
+        "latest": "6.2.1",
+        "latest-status": "semver-safe-update",
+        "description": "Enables the creation of webforms and questionnaires."
+      },
+      {
+        "name": "drupal/admin_toolbar",
+        "version": "3.4.0",
+        "latest": "3.4.2",
+        "latest-status": "semver-safe-update",
+        "description": "Provides a drop-down menu interface to the core Drupal Toolbar."
+      }
+    ]
+  }
+}
