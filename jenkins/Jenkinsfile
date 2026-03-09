@@ -82,7 +82,11 @@ pipeline {
         script {
           echo "Running comprehensive site analysis..."
           dir(env.PROJECT_ROOT) {
-            sh 'python3 -m core.analysis_engine'
+            sh """
+              export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+              export SITE_URL='${params.SITE_URL}'
+              python3 -m core.analysis_engine
+            """
           }
         }
       }
@@ -93,9 +97,11 @@ pipeline {
         script {
           echo "Checking for available module updates..."
           dir(env.PROJECT_ROOT) {
-            sh '''
+            sh """
+              export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+              export SITE_URL='${params.SITE_URL}'
               python3 -c "from core.update_engine import check_versions; check_versions()"
-            '''
+            """
           }
         }
       }
@@ -109,9 +115,11 @@ pipeline {
         script {
           echo "Applying security updates via Composer..."
           dir(env.PROJECT_ROOT) {
-            sh '''
+            sh """
+              export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+              export SITE_URL='${params.SITE_URL}'
               python3 -c "from core.update_engine import apply_updates; apply_updates()"
-            '''
+            """
           }
         }
       }
@@ -139,7 +147,11 @@ pipeline {
         script {
           echo "Running comprehensive automated tests..."
           dir(env.PROJECT_ROOT) {
-            sh 'python3 -m core.testing_engine'
+            sh """
+              export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+              export SITE_URL='${params.SITE_URL}'
+              python3 -m core.testing_engine
+            """
           }
         }
       }
@@ -150,7 +162,11 @@ pipeline {
         script {
           echo "Generating security and update report..."
           dir(env.PROJECT_ROOT) {
-            sh 'python3 -m core.report_engine'
+            sh """
+              export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+              export SITE_URL='${params.SITE_URL}'
+              python3 -m core.report_engine
+            """
           }
         }
       }
