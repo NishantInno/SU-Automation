@@ -26,8 +26,8 @@ pipeline {
     )
     string(
       name: 'DRUPAL_ROOT',
-      defaultValue: '/var/www/html/drupal',
-      description: 'Absolute path to Drupal root'
+      defaultValue: '/var/www/html/testauto/web',
+      description: 'Absolute path to Drupal root (must be full path, not relative)'
     )
     string(
       name: 'SITE_URL',
