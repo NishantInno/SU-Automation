@@ -107,6 +107,9 @@ pipeline {
             sh """
               export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
               export SITE_URL='${params.SITE_URL}'
+              export DRUSH_BIN='${env.DRUSH_BIN}'
+              export COMPOSER_BIN='${env.COMPOSER_BIN}'
+              cd /var/www/html/testauto
               python3 -c "from core.update_engine import check_versions; check_versions()"
             """
           }
@@ -125,6 +128,9 @@ pipeline {
             sh """
               export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
               export SITE_URL='${params.SITE_URL}'
+              export DRUSH_BIN='${env.DRUSH_BIN}'
+              export COMPOSER_BIN='${env.COMPOSER_BIN}'
+              cd /var/www/html/testauto
               python3 -c "from core.update_engine import apply_updates; apply_updates()"
             """
           }
@@ -175,6 +181,9 @@ pipeline {
             sh """
               export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
               export SITE_URL='${params.SITE_URL}'
+              export DRUSH_BIN='${env.DRUSH_BIN}'
+              export COMPOSER_BIN='${env.COMPOSER_BIN}'
+              cd /var/www/html/testauto
               python3 -m core.report_engine
             """
           }
