@@ -31,6 +31,13 @@ def run_cmd(
 ) -> CommandResult:
     start = time.time()
     shell = isinstance(cmd, str)
+    
+    # If cmd is a list and first element contains spaces, split it properly
+    if isinstance(cmd, (list, tuple)) and cmd and ' ' in str(cmd[0]):
+        # Split the first element and combine with rest
+        first_parts = str(cmd[0]).split()
+        cmd = first_parts + list(cmd[1:])
+    
     command_str = cmd if isinstance(cmd, str) else " ".join(cmd)
 
     proc = subprocess.run(
