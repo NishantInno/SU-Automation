@@ -82,7 +82,7 @@ pipeline {
         script {
           echo "Running comprehensive site analysis..."
           dir(env.PROJECT_ROOT) {
-            sh 'python3 core/analysis_engine.py'
+            sh 'python3 -m core.analysis_engine'
           }
         }
       }
@@ -139,7 +139,7 @@ pipeline {
         script {
           echo "Running comprehensive automated tests..."
           dir(env.PROJECT_ROOT) {
-            sh 'python3 core/testing_engine.py'
+            sh 'python3 -m core.testing_engine'
           }
         }
       }
@@ -150,7 +150,7 @@ pipeline {
         script {
           echo "Generating security and update report..."
           dir(env.PROJECT_ROOT) {
-            sh 'python3 core/report_engine.py'
+            sh 'python3 -m core.report_engine'
           }
         }
       }
@@ -165,7 +165,7 @@ pipeline {
           echo "Running AI-assisted error fixing..."
           dir(env.PROJECT_ROOT) {
             catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-              sh 'python3 core/ai_fix_engine.py'
+              sh 'python3 -m core.ai_fix_engine'
             }
           }
         }
@@ -180,7 +180,7 @@ pipeline {
         script {
           echo "Re-running tests after AI fixes..."
           dir(env.PROJECT_ROOT) {
-            sh 'python3 core/testing_engine.py'
+            sh 'python3 -m core.testing_engine'
           }
         }
       }
