@@ -37,7 +37,7 @@ def _parse_status_fallback(text: str) -> dict[str, str]:
     return data
 
 
-def run_site_analysis() -> Path:
+def run_site_analysis(output_filename: str = "site-analysis.json") -> Path:
     config = load_config()
     logger = setup_logger("analysis_engine", config.logs_dir)
 
@@ -173,7 +173,7 @@ def run_site_analysis() -> Path:
         "custom_module_count": len(custom_modules),
     }
 
-    report_path = config.reports_dir / "site-analysis.json"
+    report_path = config.reports_dir / output_filename
     write_json(report_path, analysis)
     logger.info("Site analysis report written to %s", report_path)
     return report_path
