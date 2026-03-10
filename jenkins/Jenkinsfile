@@ -232,14 +232,14 @@ pipeline {
             sh """
               export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
               export SITE_URL='${params.SITE_URL}'
-              cd /var/www/html/testauto
               
               python3 << 'PYTHON_SCRIPT'
 import json
 from pathlib import Path
 from core.email_template import generate_html_email
 
-reports_dir = Path("reports")
+reports_dir = Path("${env.PROJECT_ROOT}/reports")
+reports_dir.mkdir(parents=True, exist_ok=True)
 
 # Load data
 before_data = json.loads((reports_dir / "before-analysis.json").read_text()) if (reports_dir / "before-analysis.json").exists() else {}
