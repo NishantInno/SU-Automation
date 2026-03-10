@@ -181,18 +181,45 @@ def apply_updates() -> Path:
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "updates": update_results,
         "post_update": {
-            "updb": updb.exit_code,
-            "cr": cr.exit_code,
-            "cim": cim.exit_code,
+            "updb": {
+                "exit_code": updb.exit_code,
+                "stdout": updb.stdout,
+                "stderr": updb.stderr,
+            },
+            "cr": {
+                "exit_code": cr.exit_code,
+                "stdout": cr.stdout,
+                "stderr": cr.stderr,
+            },
+            "cim": {
+                "exit_code": cim.exit_code,
+                "stdout": cim.stdout,
+                "stderr": cim.stderr,
+            },
         },
     }
 
-    if any(code != 0 for code in [updb.exit_code, cr.exit_code, cim.exit_code]):
-        raise RuntimeError("Post-update drush commands failed")
-
+    # Write report even if post-update commands failed
     report_path = config.reports_dir / "update-results.json"
     write_json(report_path, update_summary)
     logger.info("Update results written to %s", report_path)
+    
+    # Log warnings for failed post-update commands but don't fail
+    failed_commands = []
+    if updb.exit_code != 0:
+        logger.warning("drush updb failed with exit code %d", updb.exit_code)
+        failed_commands.append("updb")
+    if cr.exit_code != 0:
+        logger.warning("drush cr failed with exit code %d", cr.exit_code)
+        failed_commands.append("cr")
+    if cim.exit_code != 0:
+        logger.warning("drush cim failed with exit code %d", cim.exit_code)
+        failed_commands.append("cim")
+    
+    if failed_commands:
+        logger.warning("Post-update commands failed: %s", ", ".join(failed_commands))
+        logger.warning("Updates were applied but some post-update tasks need manual attention")
+    
     return report_path
 
 

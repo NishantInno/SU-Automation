@@ -298,7 +298,7 @@ print('Verification passed!')
             <p><strong>Duration:</strong> ${currentBuild.durationString}</p>
             <p>View the full security report in Jenkins artifacts.</p>
           """,
-          to: '${DEFAULT_RECIPIENTS}',
+          to: 'admin@example.com',  // TODO: Change to your email address
           mimeType: 'text/html'
         )
       }
@@ -316,7 +316,7 @@ print('Verification passed!')
             <p><strong>Failed Stage:</strong> ${env.STAGE_NAME}</p>
             <p>Check the console output and logs for details.</p>
           """,
-          to: '${DEFAULT_RECIPIENTS}',
+          to: 'admin@example.com',  // TODO: Change to your email address
           mimeType: 'text/html'
         )
       }
