@@ -36,7 +36,7 @@ pipeline {
     )
     string(
       name: 'EMAIL_RECIPIENT',
-      defaultValue: 'admin@example.com',
+      defaultValue: 'smtptest@innoppl.com',
       description: 'Email address to receive reports'
     )
   }
