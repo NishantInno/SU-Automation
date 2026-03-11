@@ -44,11 +44,6 @@ pipeline {
       defaultValue: '/var/www/html/testauto',
       description: 'Path to DDEV project root (folder that has .ddev)'
     )
-    string(
-      name: 'AUTOMATION_BRANCH',
-      defaultValue: 'suautomation',
-      description: 'Git branch name for automation changes (created on first run)'
-    )
   }
   
   options {
@@ -85,7 +80,6 @@ pipeline {
           echo "Site URL: ${params.SITE_URL}"
           echo "Email: ${params.EMAIL_RECIPIENT}"
           echo "Project Path: ${params.PROJECT_PATH}"
-          echo "Automation Branch: ${params.AUTOMATION_BRANCH}"
           echo "==================================================="
           
           sh """
@@ -99,23 +93,6 @@ pipeline {
             echo "Installing Playwright browsers..."
             python3 -m playwright install chromium --with-deps 2>/dev/null || echo "Playwright browsers may already be installed"
           """
-        }
-      }
-    }
-    
-    stage('Setup Project Branch') {
-      steps {
-        script {
-          echo "🔧 Setting up automation branch for project..."
-          dir(env.PROJECT_ROOT) {
-            sh """
-              # Run branch setup script
-              bash scripts/setup_project_branch.sh \
-                "${params.PROJECT_PATH}" \
-                "${params.AUTOMATION_BRANCH}" \
-                "_code_bkp"
-            """
-          }
         }
       }
     }
@@ -257,48 +234,7 @@ pipeline {
       }
     }
     
-    stage('Stage 8: Commit Changes to Automation Branch') {
-      when {
-        expression { params.DRY_RUN == false }
-      }
-      steps {
-        script {
-          echo "💾 Committing changes to ${params.AUTOMATION_BRANCH} branch..."
-          dir(params.PROJECT_PATH) {
-            sh """
-              # Ensure we're on the automation branch
-              git checkout ${params.AUTOMATION_BRANCH}
-              
-              # Add all changes
-              git add -A
-              
-              # Check if there are changes to commit
-              if git diff --staged --quiet; then
-                echo "ℹ️  No changes to commit"
-              else
-                # Commit changes
-                git commit -m "Automated security updates - Build #${env.BUILD_NUMBER}
-
-- Applied security updates
-- Updated modules and core
-- Ran database updates
-- Executed automated tests
-
-Build: ${env.BUILD_URL}
-Date: \$(date)
-" || echo "Commit completed with warnings"
-                
-                # Push to remote automation branch
-                git push origin ${params.AUTOMATION_BRANCH}
-                echo "✅ Changes pushed to ${params.AUTOMATION_BRANCH} branch"
-              fi
-            """
-          }
-        }
-      }
-    }
-    
-    stage('Stage 9: Generate Email HTML') {
+    stage('Stage 8: Generate Email HTML') {
       steps {
         script {
           echo "📧 Generating HTML email report..."
