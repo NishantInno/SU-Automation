@@ -52,9 +52,11 @@ def _headless_check(url: str) -> dict[str, Any]:
     return {"url": url, "status": "ok" if status and status < 500 else "error", "http_status": status}
 
 
-def run_tests() -> Path:
+def run_tests() -> None:
+    """Run all tests and generate report."""
     config = load_config()
     logger = setup_logger("testing_engine", config.logs_dir)
+    logger.info("Starting automated testing")
 
     logger.info("Running HTTP status checks")
     http_results = []
@@ -95,6 +97,28 @@ def run_tests() -> Path:
         config.command_timeout,
     )
 
+    # Run menu testing with Playwright
+    menu_results = {}
+    try:
+        logger.info("Running menu link testing with Playwright")
+        from .menu_testing import run_menu_tests
+        run_menu_tests()
+        # Load the generated report
+        menu_report_path = config.reports_dir / "menu-check.json"
+        if menu_report_path.exists():
+            menu_results = json.loads(menu_report_path.read_text())
+            logger.info("✅ Menu testing completed: %d links tested, %d successful, %d failed",
+                       menu_results.get("total_links_tested", 0),
+                       menu_results.get("successful_links", 0),
+                       menu_results.get("failed_links", 0))
+    except ImportError:
+        logger.warning("⚠️ Playwright not installed, skipping menu testing")
+        logger.info("Install with: pip install playwright")
+        menu_results = {"status": "skipped", "reason": "Playwright not installed"}
+    except Exception as e:
+        logger.warning("⚠️ Menu testing failed: %s", str(e))
+        menu_results = {"status": "error", "error": str(e)}
+
     error_pages = [item for item in http_results if item.get("status_code") not in {"200", "301", "302"}]
     watchdog_errors = []
     if isinstance(watchdog, list):
@@ -112,10 +136,13 @@ def run_tests() -> Path:
         "watchdog": watchdog,
         "entity_updates": entity_updates,
         "config_status": config_status,
+        "menu_checks": menu_results,
         "summary": {
             "http_errors": len(error_pages),
             "headless_enabled": config.headless_enabled,
             "watchdog_errors": len(watchdog_errors),
+            "menu_links_tested": menu_results.get("total_links_tested", 0),
+            "menu_links_failed": menu_results.get("failed_links", 0),
         },
     }
 

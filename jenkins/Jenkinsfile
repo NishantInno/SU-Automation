@@ -82,6 +82,10 @@ pipeline {
             # Remove .env file to prevent it from overriding Jenkins parameters
             rm -f .env
             pip3 install --user -r requirements.txt --quiet 2>/dev/null || echo "Using system Python packages"
+            
+            # Install Playwright browsers for menu testing
+            echo "Installing Playwright browsers..."
+            python3 -m playwright install chromium --with-deps 2>/dev/null || echo "Playwright browsers may already be installed"
           """
         }
       }
