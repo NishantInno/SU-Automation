@@ -39,6 +39,16 @@ pipeline {
       defaultValue: 'smtptest@innoppl.com',
       description: 'Email address to receive reports'
     )
+    string(
+      name: 'PROJECT_PATH',
+      defaultValue: '/var/www/html/testauto',
+      description: 'Path to DDEV project root (folder that has .ddev)'
+    )
+    string(
+      name: 'AUTOMATION_BRANCH',
+      defaultValue: 'suautomation',
+      description: 'Git branch name for automation changes (created on first run)'
+    )
   }
   
   options {
@@ -74,6 +84,8 @@ pipeline {
           echo "Drupal Root: ${params.DRUPAL_ROOT}"
           echo "Site URL: ${params.SITE_URL}"
           echo "Email: ${params.EMAIL_RECIPIENT}"
+          echo "Project Path: ${params.PROJECT_PATH}"
+          echo "Automation Branch: ${params.AUTOMATION_BRANCH}"
           echo "==================================================="
           
           sh """
@@ -91,6 +103,23 @@ pipeline {
       }
     }
     
+    stage('Setup Project Branch') {
+      steps {
+        script {
+          echo "🔧 Setting up automation branch for project..."
+          dir(env.PROJECT_ROOT) {
+            sh """
+              # Run branch setup script
+              bash scripts/setup_project_branch.sh \
+                "${params.PROJECT_PATH}" \
+                "${params.AUTOMATION_BRANCH}" \
+                "_code_bkp"
+            """
+          }
+        }
+      }
+    }
+    
     stage('Stage 1: BEFORE Analysis') {
       steps {
         script {
@@ -101,8 +130,8 @@ pipeline {
               export SITE_URL='${params.SITE_URL}'
               export DRUSH_BIN='${env.DRUSH_BIN}'
               export COMPOSER_BIN='${env.COMPOSER_BIN}'
-              cd /var/www/html/testauto
-              python3 -c "from core.analysis_engine import run_site_analysis; run_site_analysis('before-analysis.json')"
+              cd ${params.PROJECT_PATH}
+              python3 ${env.PROJECT_ROOT}/core/analysis_engine.py before-analysis.json
             """
           }
         }
@@ -119,8 +148,8 @@ pipeline {
               export SITE_URL='${params.SITE_URL}'
               export DRUSH_BIN='${env.DRUSH_BIN}'
               export COMPOSER_BIN='${env.COMPOSER_BIN}'
-              cd /var/www/html/testauto
-              python3 -c "from core.update_engine import check_versions; check_versions()"
+              cd ${params.PROJECT_PATH}
+              python3 -m core.update_engine --check-only
             """
           }
         }
@@ -141,8 +170,8 @@ pipeline {
                 export SITE_URL='${params.SITE_URL}'
                 export DRUSH_BIN='${env.DRUSH_BIN}'
                 export COMPOSER_BIN='${env.COMPOSER_BIN}'
-                cd /var/www/html/testauto
-                python3 -c "from core.update_engine import apply_updates; apply_updates()"
+                cd ${params.PROJECT_PATH}
+                python3 -m core.update_engine
               """
             }
           }
@@ -159,7 +188,7 @@ pipeline {
           echo "💾 Running Drush database updates..."
           catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
             sh """
-              cd /var/www/html/testauto
+              cd ${params.PROJECT_PATH}
               ddev drush updb -y || echo "Database updates completed with warnings"
               ddev drush cr || echo "Cache rebuild completed with warnings"
             """
@@ -181,8 +210,8 @@ pipeline {
               export SITE_URL='${params.SITE_URL}'
               export DRUSH_BIN='${env.DRUSH_BIN}'
               export COMPOSER_BIN='${env.COMPOSER_BIN}'
-              cd /var/www/html/testauto
-              python3 -c "from core.analysis_engine import run_site_analysis; run_site_analysis('after-analysis.json')"
+              cd ${params.PROJECT_PATH}
+              python3 ${env.PROJECT_ROOT}/core/analysis_engine.py after-analysis.json
             """
           }
         }
@@ -201,7 +230,7 @@ pipeline {
                 export DRUSH_BIN='${env.DRUSH_BIN}'
                 export COMPOSER_BIN='${env.COMPOSER_BIN}'
                 export FAIL_ON_TEST_ERRORS='false'
-                cd /var/www/html/testauto
+                cd ${params.PROJECT_PATH}
                 python3 -m core.testing_engine
               """
             }
@@ -220,7 +249,7 @@ pipeline {
               export SITE_URL='${params.SITE_URL}'
               export DRUSH_BIN='${env.DRUSH_BIN}'
               export COMPOSER_BIN='${env.COMPOSER_BIN}'
-              cd /var/www/html/testauto
+              cd ${params.PROJECT_PATH}
               python3 -m core.report_engine
             """
           }
@@ -228,7 +257,48 @@ pipeline {
       }
     }
     
-    stage('Stage 8: Generate Email HTML') {
+    stage('Stage 8: Commit Changes to Automation Branch') {
+      when {
+        expression { params.DRY_RUN == false }
+      }
+      steps {
+        script {
+          echo "💾 Committing changes to ${params.AUTOMATION_BRANCH} branch..."
+          dir(params.PROJECT_PATH) {
+            sh """
+              # Ensure we're on the automation branch
+              git checkout ${params.AUTOMATION_BRANCH}
+              
+              # Add all changes
+              git add -A
+              
+              # Check if there are changes to commit
+              if git diff --staged --quiet; then
+                echo "ℹ️  No changes to commit"
+              else
+                # Commit changes
+                git commit -m "Automated security updates - Build #${env.BUILD_NUMBER}
+
+- Applied security updates
+- Updated modules and core
+- Ran database updates
+- Executed automated tests
+
+Build: ${env.BUILD_URL}
+Date: \$(date)
+" || echo "Commit completed with warnings"
+                
+                # Push to remote automation branch
+                git push origin ${params.AUTOMATION_BRANCH}
+                echo "✅ Changes pushed to ${params.AUTOMATION_BRANCH} branch"
+              fi
+            """
+          }
+        }
+      }
+    }
+    
+    stage('Stage 9: Generate Email HTML') {
       steps {
         script {
           echo "📧 Generating HTML email report..."
