@@ -107,8 +107,9 @@ pipeline {
               export SITE_URL='${params.SITE_URL}'
               export DRUSH_BIN='${env.DRUSH_BIN}'
               export COMPOSER_BIN='${env.COMPOSER_BIN}'
+              export PYTHONPATH='${env.PROJECT_ROOT}:$PYTHONPATH'
               cd ${params.PROJECT_PATH}
-              python3 ${env.PROJECT_ROOT}/core/analysis_engine.py before-analysis.json
+              python3 -c "from core.analysis_engine import run_site_analysis; run_site_analysis('before-analysis.json')"
             """
           }
         }
@@ -187,8 +188,9 @@ pipeline {
               export SITE_URL='${params.SITE_URL}'
               export DRUSH_BIN='${env.DRUSH_BIN}'
               export COMPOSER_BIN='${env.COMPOSER_BIN}'
+              export PYTHONPATH='${env.PROJECT_ROOT}:$PYTHONPATH'
               cd ${params.PROJECT_PATH}
-              python3 ${env.PROJECT_ROOT}/core/analysis_engine.py after-analysis.json
+              python3 -c "from core.analysis_engine import run_site_analysis; run_site_analysis('after-analysis.json')"
             """
           }
         }
