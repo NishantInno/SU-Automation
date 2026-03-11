@@ -1,0 +1,399 @@
+pipeline {
+  agent any
+  
+  parameters {
+    choice(
+      name: 'ENVIRONMENT',
+      choices: ['local', 'dev', 'qc', 'prod'],
+      description: 'Target environment'
+    )
+    booleanParam(
+      name: 'DRY_RUN',
+      defaultValue: false,
+      description: 'Run in dry-run mode (no actual updates)'
+    )
+    booleanParam(
+      name: 'SKIP_AI_FIX',
+      defaultValue: true,
+      description: 'Skip AI-powered issue fixing'
+    )
+    string(
+      name: 'DRUPAL_ROOT',
+      defaultValue: '/var/www/html/juvdev/web',
+      description: 'Absolute path to Drupal root (must be full path, not relative)'
+    )
+    string(
+      name: 'SITE_URL',
+      defaultValue: 'https://juvdev.ddev.site:8443',
+      description: 'Site URL for testing'
+    )
+    string(
+      name: 'EMAIL_RECIPIENT',
+      defaultValue: 'smtptest@innoppl.com',
+      description: 'Email address to receive reports'
+    )
+    string(
+      name: 'PROJECT_PATH',
+      defaultValue: '/var/www/html/juvdev',
+      description: 'Path to DDEV project root (folder that has .ddev)'
+    )
+    string(
+      name: 'AUTOMATION_BRANCH',
+      defaultValue: 'suautomation',
+      description: 'Git branch name for automation changes'
+    )
+  }
+  
+  options {
+    timestamps()
+    timeout(time: 2, unit: 'HOURS')
+    buildDiscarder(logRotator(numToKeepStr: '30', daysToKeepStr: '90'))
+    disableConcurrentBuilds()
+  }
+  
+  environment {
+    PROJECT_ROOT = "${env.WORKSPACE}"
+    DRUSH_BIN = "ddev drush"
+    COMPOSER_BIN = "ddev composer"
+    FAIL_ON_TEST_ERRORS = "false"
+    HEADLESS_ENABLED = "false"
+    VERIFY_SSL = "true"
+    COMMAND_TIMEOUT = "900"
+  }
+  
+  stages {
+    stage('Initialize') {
+      steps {
+        script {
+          echo "==================================================="
+          echo "Automated Security Update Pipeline - JUVDEV"
+          echo "==================================================="
+          echo "Environment: ${params.ENVIRONMENT}"
+          echo "Dry Run: ${params.DRY_RUN}"
+          echo "Skip AI Fix: ${params.SKIP_AI_FIX}"
+          echo "Drupal Root: ${params.DRUPAL_ROOT}"
+          echo "Site URL: ${params.SITE_URL}"
+          echo "Email: ${params.EMAIL_RECIPIENT}"
+          echo "Project Path: ${params.PROJECT_PATH}"
+          echo "Automation Branch: ${params.AUTOMATION_BRANCH}"
+          echo "==================================================="
+          
+          sh """
+            cd ${env.PROJECT_ROOT}
+            mkdir -p logs reports patches
+            # Remove .env file to prevent it from overriding Jenkins parameters
+            rm -f .env
+            pip3 install --user -r requirements.txt --quiet 2>/dev/null || echo "Using system Python packages"
+            
+            # Install Playwright browsers for menu testing
+            echo "Installing Playwright browsers..."
+            python3 -m playwright install chromium --with-deps 2>/dev/null || echo "Playwright browsers may already be installed"
+          """
+        }
+      }
+    }
+    
+    stage('Setup Project Branch') {
+      steps {
+        script {
+          echo "🔧 Setting up automation branch for project..."
+          dir(env.PROJECT_ROOT) {
+            sh """
+              # Run branch setup script
+              bash scripts/setup_project_branch.sh \
+                "${params.PROJECT_PATH}" \
+                "${params.AUTOMATION_BRANCH}" \
+                "_code_bkp"
+            """
+          }
+        }
+      }
+    }
+    
+    stage('Stage 1: BEFORE Analysis') {
+      steps {
+        script {
+          echo "📊 Capturing site state BEFORE updates..."
+          dir(env.PROJECT_ROOT) {
+            sh """
+              export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+              export SITE_URL='${params.SITE_URL}'
+              export DRUSH_BIN='${env.DRUSH_BIN}'
+              export COMPOSER_BIN='${env.COMPOSER_BIN}'
+              cd ${params.PROJECT_PATH}
+              python3 ${env.PROJECT_ROOT}/core/analysis_engine.py before-analysis.json
+              
+              # Copy report to workspace
+              cp ${params.DRUPAL_ROOT}/../reports/before-analysis.json ${env.PROJECT_ROOT}/reports/ || true
+            """
+          }
+        }
+      }
+    }
+    
+    stage('Stage 2: Version Check') {
+      steps {
+        script {
+          echo "🔍 Checking for available updates..."
+          dir(env.PROJECT_ROOT) {
+            sh """
+              export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+              export SITE_URL='${params.SITE_URL}'
+              export DRUSH_BIN='${env.DRUSH_BIN}'
+              export COMPOSER_BIN='${env.COMPOSER_BIN}'
+              cd ${params.PROJECT_PATH}
+              python3 -m core.update_engine --check-only
+            """
+          }
+        }
+      }
+    }
+    
+    stage('Stage 3: Apply Security Updates') {
+      when {
+        expression { params.DRY_RUN == false }
+      }
+      steps {
+        script {
+          echo "🔒 Applying security updates..."
+          dir(env.PROJECT_ROOT) {
+            catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+              sh """
+                export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+                export SITE_URL='${params.SITE_URL}'
+                export DRUSH_BIN='${env.DRUSH_BIN}'
+                export COMPOSER_BIN='${env.COMPOSER_BIN}'
+                cd ${params.PROJECT_PATH}
+                python3 -m core.update_engine
+              """
+            }
+          }
+        }
+      }
+    }
+    
+    stage('Stage 4: Database Updates') {
+      when {
+        expression { params.DRY_RUN == false }
+      }
+      steps {
+        script {
+          echo "💾 Running database updates..."
+          dir(env.PROJECT_ROOT) {
+            catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+              sh """
+                export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+                export SITE_URL='${params.SITE_URL}'
+                export DRUSH_BIN='${env.DRUSH_BIN}'
+                cd ${params.PROJECT_PATH}
+                ${env.DRUSH_BIN} updb -y || echo "Database updates completed with warnings"
+                ${env.DRUSH_BIN} cr || echo "Cache rebuild completed"
+              """
+            }
+          }
+        }
+      }
+    }
+    
+    stage('Stage 5: AFTER Analysis') {
+      steps {
+        script {
+          echo "📊 Capturing site state AFTER updates..."
+          dir(env.PROJECT_ROOT) {
+            sh """
+              export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+              export SITE_URL='${params.SITE_URL}'
+              export DRUSH_BIN='${env.DRUSH_BIN}'
+              export COMPOSER_BIN='${env.COMPOSER_BIN}'
+              cd ${params.PROJECT_PATH}
+              python3 ${env.PROJECT_ROOT}/core/analysis_engine.py after-analysis.json
+              
+              # Copy report to workspace
+              cp ${params.DRUPAL_ROOT}/../reports/after-analysis.json ${env.PROJECT_ROOT}/reports/ || true
+            """
+          }
+        }
+      }
+    }
+    
+    stage('Stage 6: Automated Testing') {
+      steps {
+        script {
+          echo "🧪 Running automated tests..."
+          dir(env.PROJECT_ROOT) {
+            catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+              sh """
+                export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+                export SITE_URL='${params.SITE_URL}'
+                export DRUSH_BIN='${env.DRUSH_BIN}'
+                export COMPOSER_BIN='${env.COMPOSER_BIN}'
+                cd ${params.PROJECT_PATH}
+                python3 -m core.testing_engine
+                
+                # Copy reports to workspace
+                cp ${params.DRUPAL_ROOT}/../reports/testing-results.json ${env.PROJECT_ROOT}/reports/ || true
+                cp ${params.DRUPAL_ROOT}/../reports/menu-check.json ${env.PROJECT_ROOT}/reports/ || true
+              """
+            }
+          }
+        }
+      }
+    }
+    
+    stage('Stage 7: Generate Report') {
+      steps {
+        script {
+          echo "📝 Generating security and update report..."
+          dir(env.PROJECT_ROOT) {
+            sh """
+              export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+              export SITE_URL='${params.SITE_URL}'
+              export DRUSH_BIN='${env.DRUSH_BIN}'
+              export COMPOSER_BIN='${env.COMPOSER_BIN}'
+              cd ${params.PROJECT_PATH}
+              python3 -m core.report_engine
+            """
+          }
+        }
+      }
+    }
+    
+    stage('Stage 8: Commit Changes to Automation Branch') {
+      when {
+        expression { params.DRY_RUN == false }
+      }
+      steps {
+        script {
+          echo "💾 Committing changes to ${params.AUTOMATION_BRANCH} branch..."
+          dir(params.PROJECT_PATH) {
+            sh """
+              # Ensure we're on the automation branch
+              git checkout ${params.AUTOMATION_BRANCH}
+              
+              # Add all changes
+              git add -A
+              
+              # Check if there are changes to commit
+              if git diff --staged --quiet; then
+                echo "ℹ️  No changes to commit"
+              else
+                # Commit changes
+                git commit -m "Automated security updates - Build #${env.BUILD_NUMBER}
+
+- Applied security updates
+- Updated modules and core
+- Ran database updates
+- Executed automated tests
+
+Build: ${env.BUILD_URL}
+Date: \$(date)
+" || echo "Commit completed with warnings"
+                
+                # Push to remote automation branch
+                git push origin ${params.AUTOMATION_BRANCH}
+                echo "✅ Changes pushed to ${params.AUTOMATION_BRANCH} branch"
+              fi
+            """
+          }
+        }
+      }
+    }
+    
+    stage('Stage 9: Generate Email HTML') {
+      steps {
+        script {
+          echo "📧 Generating HTML email report..."
+          dir(env.PROJECT_ROOT) {
+            sh """
+              export DRUPAL_ROOT='${params.DRUPAL_ROOT}'
+              export SITE_URL='${params.SITE_URL}'
+              
+              python3 << 'PYTHON_SCRIPT'
+import json
+from pathlib import Path
+from core.email_template import generate_html_email
+
+reports_dir = Path("${env.PROJECT_ROOT}/reports")
+reports_dir.mkdir(parents=True, exist_ok=True)
+
+# Load data
+before_data = json.loads((reports_dir / "before-analysis.json").read_text()) if (reports_dir / "before-analysis.json").exists() else {}
+after_data = json.loads((reports_dir / "after-analysis.json").read_text()) if (reports_dir / "after-analysis.json").exists() else before_data
+update_data = json.loads((reports_dir / "update-results.json").read_text()) if (reports_dir / "update-results.json").exists() else {"updates": []}
+
+# Generate HTML
+html = generate_html_email(
+    before_data=before_data,
+    after_data=after_data,
+    update_data=update_data,
+    environment="${params.ENVIRONMENT}",
+    build_number="${env.BUILD_NUMBER}",
+    build_url="${env.BUILD_URL}"
+)
+
+# Write HTML report
+(reports_dir / "email-report.html").write_text(html)
+print("✅ Email HTML report generated")
+PYTHON_SCRIPT
+            """
+          }
+        }
+      }
+    }
+  }
+  
+  post {
+    success {
+      script {
+        echo "✅ Pipeline completed successfully"
+        emailext(
+          subject: "✅ Automated Security Update - SUCCESS - JUVDEV - Build #${env.BUILD_NUMBER}",
+          body: readFile("${env.WORKSPACE}/reports/email-report.html"),
+          to: "${params.EMAIL_RECIPIENT}",
+          mimeType: 'text/html',
+          attachmentsPattern: 'reports/*.json'
+        )
+      }
+      archiveArtifacts artifacts: 'reports/**/*', allowEmptyArchive: true
+    }
+    
+    failure {
+      script {
+        echo "❌ Pipeline failed"
+        emailext(
+          subject: "❌ Automated Security Update - FAILED - JUVDEV - Build #${env.BUILD_NUMBER}",
+          body: """
+            <h2>Pipeline Failed</h2>
+            <p>The automated security update pipeline has failed.</p>
+            <p><strong>Build:</strong> #${env.BUILD_NUMBER}</p>
+            <p><strong>Project:</strong> JUVDEV</p>
+            <p><strong>Environment:</strong> ${params.ENVIRONMENT}</p>
+            <p><a href="${env.BUILD_URL}">View Build Details</a></p>
+            <p><a href="${env.BUILD_URL}console">View Console Output</a></p>
+          """,
+          to: "${params.EMAIL_RECIPIENT}",
+          mimeType: 'text/html'
+        )
+      }
+      archiveArtifacts artifacts: 'reports/**/*,logs/**/*', allowEmptyArchive: true
+    }
+    
+    unstable {
+      script {
+        echo "⚠️ Pipeline completed with warnings"
+        emailext(
+          subject: "⚠️ Automated Security Update - UNSTABLE - JUVDEV - Build #${env.BUILD_NUMBER}",
+          body: readFile("${env.WORKSPACE}/reports/email-report.html"),
+          to: "${params.EMAIL_RECIPIENT}",
+          mimeType: 'text/html',
+          attachmentsPattern: 'reports/*.json'
+        )
+      }
+      archiveArtifacts artifacts: 'reports/**/*,logs/**/*', allowEmptyArchive: true
+    }
+    
+    always {
+      echo "Pipeline execution completed"
+    }
+  }
+}
