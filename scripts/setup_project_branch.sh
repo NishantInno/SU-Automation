@@ -44,17 +44,31 @@ else
     echo "🆕 First time setup detected"
     echo "Creating new branch '$BRANCH_NAME' from current branch..."
     
-    # Ensure we're on the latest
-    git fetch origin
+    # Ensure we're on the latest (if remote exists)
+    if git remote get-url origin >/dev/null 2>&1; then
+        echo "Fetching latest from remote..."
+        git fetch origin 2>/dev/null || echo "⚠️  Could not fetch from remote"
+    fi
     
     # Create new branch from current HEAD
     git checkout -b "$BRANCH_NAME"
     echo "✅ Created and switched to branch '$BRANCH_NAME'"
     
-    # Push new branch to remote
-    echo "Pushing new branch to remote..."
-    git push -u origin "$BRANCH_NAME"
-    echo "✅ Branch '$BRANCH_NAME' pushed to remote"
+    # Push new branch to remote (if remote exists)
+    if git remote get-url origin >/dev/null 2>&1; then
+        echo "Pushing new branch to remote..."
+        if git push -u origin "$BRANCH_NAME" 2>/dev/null; then
+            echo "✅ Branch '$BRANCH_NAME' pushed to remote"
+        else
+            echo "⚠️  Could not push to remote (remote may not exist or no access)"
+            echo "ℹ️  Branch created locally. You can push manually later with:"
+            echo "    git push -u origin $BRANCH_NAME"
+        fi
+    else
+        echo "ℹ️  No remote repository configured"
+        echo "ℹ️  Branch created locally only"
+        echo "ℹ️  To add remote: git remote add origin <repository-url>"
+    fi
     
     # Create code backup (first time only)
     BACKUP_DIR="${PROJECT_PATH}${BACKUP_SUFFIX}"
